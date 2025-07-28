@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebベースのLua実行環境</title>
+    
+    <!-- Tailwind CSSとGoogle Fontsの読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=M+PLUS+1p:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Fengari (Luaインタプリタ) の読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js"></script>
+
+    <!-- CodeMirror (高機能エディタ) の読み込み -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/lua/lua.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/display/autorefresh.js"></script>
+
+    <style>
+        body { font-family: 'Inter', 'M PLUS 1p', sans-serif; overflow: hidden; }
+        .help-code { 
+            background-color: #f3f4f6; color: #1f2937; padding: 2px 6px; 
+            border-radius: 4px; font-family: 'Courier New', Courier, monospace; 
+        }
+        .dark .help-code { background-color: #374151; color: #f9fafb; }
+        .CodeMirror { font-family: 'Courier New', Courier, monospace; height: 100%; font-size: 14px; }
+        
+        #main-content { display: flex; height: calc(100vh - 120px); }
+        #editor-panel, #output-panel { display: flex; flex-direction: column; }
+        #resize-handle { cursor: col-resize; background: #e5e7eb; width: 4px; transition: background-color 0.2s; flex-shrink: 0; }
+        .dark #resize-handle { background: #374151; }
+        #resize-handle:hover { background-color: #4f46e5; }
+        #submit-input { white-space: nowrap; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+    <div class="flex flex-col h-screen">
+        <header class="text-center py-4 flex-shrink-0">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">簡易プログラミング環境</h1>
+        </header>
+
+        <div id="main-content" class="w-full">
+            <!-- エディタパネル -->
+            <div id="editor-panel" class="w-1/2 p-2">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col w-full h-full p-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex-shrink-0">Lua コードエディタ</label>
+                    <div class="relative flex-grow">
+                        <textarea id="code-editor"></textarea>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center flex-shrink-0">
+                        <div>
+                            <input type="file" id="import-file" accept=".lua,.txt" class="hidden">
+                            <button id="import-button" title="Import" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg> </button>
+                            <button id="export-button" title="Export" class="ml-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg> </button>
+                            <button id="help-button" title="Help" class="ml-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg> </button>
+                        </div>
+                        <div id="run-stop-container">
+                            <button id="run-button" class="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:scale-105"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"> <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /> </svg> 実行 </button>
+                            <button id="stop-button" class="hidden px-6 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all transform hover:scale-105"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"> <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 8a2 2 0 012-2h0a2 2 0 012 2v4a2 2 0 01-2 2h0a2 2 0 01-2-2V8z" clip-rule="evenodd" /> </svg> 停止 </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="resize-handle"></div>
+            
+            <div id="output-panel" class="flex-1 p-2">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col w-full h-full p-4">
+                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex-shrink-0">実行結果</h3>
+                    <pre id="output-area" class="w-full flex-grow p-4 bg-gray-900 text-white font-mono text-sm rounded-lg overflow-auto whitespace-pre-wrap"></pre>
+                    <!-- ★★★ 入力欄のスタイルを修正 ★★★ -->
+                    <div id="input-wrapper" class="hidden mt-2 flex flex-shrink-0 rounded-md ring-1 ring-gray-600 focus-within:ring-2 focus-within:ring-indigo-500 transition">
+                        <input type="text" id="user-input" class="flex-grow p-2 bg-transparent border-none focus:outline-none focus:ring-0 text-white">
+                        <button id="submit-input" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-r-md hover:bg-indigo-700">送信</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">ヘルプ</h2>
+                <button id="close-modal-button" class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+            </div>
+            <div class="text-sm text-gray-700 dark:text-gray-300 space-y-4 overflow-y-auto">
+                <section> <h3 class="font-bold text-md mb-2">基本的な構文</h3> <ul class="list-disc list-inside space-y-1"> <li>コメント: <code class="help-code">-- 1行コメント</code>, <code class="help-code">--[[ 複数行 ]]</code></li> <li>変数: <code class="help-code">local my_variable = 123</code></li> <li>条件分岐: <code class="help-code">if ... then ... else ... end</code></li> <li>ループ: <code class="help-code">for i=1,10 do ... end</code>, <code class="help-code">while ... do ... end</code></li> </ul> </section>
+                <section> <h3 class="font-bold text-md mb-2">利用可能なカスタム関数</h3> <ul class="list-disc list-inside space-y-1"> <li><code class="help-code">io_read()</code>: ユーザーからの入力を待ち受け、その値を文字列として返します。</li> <li><code class="help-code">os_time()</code>: 現在のUNIXタイムスタンプ（秒）を数値で返します。</li> </ul> </section>
+                <section> <h3 class="font-bold text-md mb-2">主な標準ライブラリ関数 (例)</h3> <ul class="list-disc list-inside space-y-1"> <li><strong>基本:</strong> <code class="help-code">print(...)</code>, <code class="help-code">tostring(v)</code>, <code class="help-code">tonumber(v)</code></li> <li><strong>math:</strong> <code class="help-code">math.random(n)</code>, <code class="help-code">math.sin(rad)</code>, <code class="help-code">math.pi</code></li> <li><strong>string:</strong> <code class="help-code">string.len(s)</code>, <code class="help-code">string.sub(s, i, j)</code></li> <li><strong>table:</strong> <code class="help-code">table.insert(t, val)</code>, <code class="help-code">table.remove(t)</code></li> </ul> </section>
+            </div>
+            <div class="mt-6 text-right flex-shrink-0"> <button id="close-modal-button-2" class="px-5 py-2 bg-indigo-600 text-white font-semibold rounded-lg">閉じる</button> </div>
+        </div>
+    </div>
+
+    <script>
+        const codeEditorElement = document.getElementById('code-editor');
+        const outputArea = document.getElementById('output-area');
+        const runButton = document.getElementById('run-button');
+        const stopButton = document.getElementById('stop-button');
+        const importButton = document.getElementById('import-button');
+        const importFile = document.getElementById('import-file');
+        const exportButton = document.getElementById('export-button');
+        const resizeHandle = document.getElementById('resize-handle');
+        const editorPanel = document.getElementById('editor-panel');
+        const outputPanel = document.getElementById('output-panel');
+        const helpButton = document.getElementById('help-button');
+        const helpModal = document.getElementById('help-modal');
+        const closeModalButton = document.getElementById('close-modal-button');
+        const closeModalButton2 = document.getElementById('close-modal-button-2');
+        const inputWrapper = document.getElementById('input-wrapper');
+        const userInput = document.getElementById('user-input');
+        const submitInput = document.getElementById('submit-input');
+
+        const editor = CodeMirror.fromTextArea(codeEditorElement, {
+            mode: 'lua', theme: 'dracula', lineNumbers: true, lineWrapping: true,
+            autofocus: true, autoRefresh: true,
+        });
+
+        const sampleCode = `-- 数当てゲーム
+math.randomseed(os_time())
+print("1から100までの数字を当ててみて！")
+
+local secret_number = math.random(1, 100)
+local attempts = 0
+
+while true do
+  attempts = attempts + 1
+  print(attempts .. "回目の挑戦: ")
+  
+  local input = io_read()
+  local guess = tonumber(input)
+
+  if guess == nil then
+    print("数字を入力してください。")
+  elseif guess < secret_number then
+    print("もっと大きい数字です。")
+  elseif guess > secret_number then
+    print("もっと小さい数字です。")
+  else
+    print("正解！ " .. attempts .. "回で当たりました。")
+    break
+  end
+end`;
+        editor.setValue(sampleCode);
+        setTimeout(() => editor.refresh(), 100);
+
+        let luaThread = null;
+
+        const executeLuaCode = () => {
+            if (luaThread) return;
+            outputArea.textContent = '';
+            outputArea.classList.remove('text-red-400');
+            runButton.classList.add('hidden');
+            stopButton.classList.remove('hidden');
+
+            const luaCode = editor.getValue();
+            if (!luaCode.trim()) {
+                outputArea.textContent = 'コードが入力されていません。';
+                handleCompletion();
+                return;
+            }
+
+            try {
+                const L = fengari.lauxlib.luaL_newstate();
+                fengari.lualib.luaL_openlibs(L);
+                
+                const customPrint = (L) => {
+                    const n = fengari.lua.lua_gettop(L); let parts = [];
+                    fengari.lua.lua_getglobal(L, fengari.to_luastring("tostring"));
+                    for (let i = 1; i <= n; i++) {
+                        fengari.lua.lua_pushvalue(L, -1); fengari.lua.lua_pushvalue(L, i);
+                        fengari.lua.lua_call(L, 1, 1);
+                        const s = fengari.lua.lua_tostring(L, -1);
+                        parts.push(s ? fengari.to_jsstring(s) : "nil");
+                        fengari.lua.lua_pop(L, 1);
+                    }
+                    outputArea.textContent += parts.join('\t') + '\n';
+                    outputArea.scrollTop = outputArea.scrollHeight;
+                    return 0;
+                };
+                
+                const customRead = (L) => {
+                    inputWrapper.classList.remove('hidden');
+                    userInput.focus();
+                    return fengari.lua.lua_yield(L, 0); 
+                };
+
+                const customOsTime = (L) => {
+                    fengari.lua.lua_pushinteger(L, Math.floor(Date.now() / 1000));
+                    return 1;
+                };
+                
+                fengari.lua.lua_pushjsfunction(L, customPrint);
+                fengari.lua.lua_setglobal(L, fengari.to_luastring("print"));
+                fengari.lua.lua_pushjsfunction(L, customRead);
+                fengari.lua.lua_setglobal(L, fengari.to_luastring("io_read"));
+                fengari.lua.lua_pushjsfunction(L, customOsTime);
+                fengari.lua.lua_setglobal(L, fengari.to_luastring("os_time"));
+
+                luaThread = fengari.lua.lua_newthread(L);
+                
+                const status = fengari.lauxlib.luaL_loadstring(luaThread, fengari.to_luastring(luaCode));
+                if (status !== fengari.lua.LUA_OK) {
+                    throw new Error(fengari.lua.lua_tojsstring(luaThread, -1));
+                }
+                resumeLua();
+
+            } catch (error) {
+                handleError(error);
+            }
+        };
+
+        const resumeLua = (inputValue) => {
+            if (!luaThread) return;
+            const n_args = inputValue === undefined ? 0 : 1;
+            if (n_args > 0) {
+                fengari.lua.lua_pushstring(luaThread, fengari.to_luastring(inputValue));
+            }
+            const status = fengari.lua.lua_resume(luaThread, null, n_args);
+            
+            if (status === fengari.lua.LUA_OK) { handleCompletion(); }
+            else if (status !== fengari.lua.LUA_YIELD) { 
+                handleError(new Error(fengari.lua.lua_tojsstring(luaThread, -1))); 
+            }
+        };
+        
+        const handleError = (error) => {
+            const displayMessage = (error && error.message) ? error.message : "不明な実行時エラーが発生しました";
+            outputArea.textContent += `\nエラー: ${displayMessage}`;
+            outputArea.classList.add('text-red-400');
+            handleCompletion();
+        };
+
+        const handleCompletion = (interrupted = false) => {
+            if (interrupted) {
+                outputArea.textContent += '\n\n--- 実行が中断されました ---';
+            }
+            luaThread = null;
+            inputWrapper.classList.add('hidden');
+            userInput.value = '';
+            runButton.classList.remove('hidden');
+            stopButton.classList.add('hidden');
+        };
+
+        const submitUserInput = () => {
+             if (!luaThread) return;
+             const value = userInput.value;
+             inputWrapper.classList.add('hidden');
+             userInput.value = '';
+             outputArea.textContent += value + '\n';
+             resumeLua(value);
+        };
+        
+        runButton.addEventListener('click', executeLuaCode);
+        stopButton.addEventListener('click', () => {
+            if(luaThread) {
+                handleCompletion(true);
+            }
+        });
+        submitInput.addEventListener('click', submitUserInput);
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitUserInput(); });
+        
+        importButton.addEventListener('click', () => importFile.click());
+        importFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => editor.setValue(e.target.result);
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+        exportButton.addEventListener('click', () => {
+            const blob = new Blob([editor.getValue()], { type: 'application/lua' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'code.lua';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        });
+
+        const openModal = () => helpModal.classList.remove('hidden');
+        const closeModal = () => helpModal.classList.add('hidden');
+        helpButton.addEventListener('click', openModal);
+        closeModalButton.addEventListener('click', closeModal);
+        closeModalButton2.addEventListener('click', closeModal);
+        helpModal.addEventListener('click', (e) => { if(e.target === helpModal) closeModal(); });
+
+        let isResizing = false;
+        resizeHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const mainContent = document.getElementById('main-content');
+            const totalWidth = mainContent.clientWidth;
+            const mouseX = e.clientX - mainContent.getBoundingClientRect().left;
+            
+            const minWidth = 200; 
+            let leftWidth = mouseX;
+
+            if (leftWidth < minWidth) leftWidth = minWidth;
+            if (leftWidth > totalWidth - minWidth - resizeHandle.offsetWidth) {
+                leftWidth = totalWidth - minWidth - resizeHandle.offsetWidth;
+            }
+
+            editorPanel.style.width = `${leftWidth}px`;
+        });
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                editor.refresh();
+            }
+        });
+    </script>
+</body>
+</html>
