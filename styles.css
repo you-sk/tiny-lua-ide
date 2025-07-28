@@ -1,0 +1,53 @@
+body { 
+    font-family: 'Inter', 'M PLUS 1p', sans-serif; 
+    overflow: hidden; 
+}
+
+.help-code { 
+    background-color: #f3f4f6; 
+    color: #1f2937; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+    font-family: 'Courier New', Courier, monospace; 
+}
+
+.dark .help-code { 
+    background-color: #374151; 
+    color: #f9fafb; 
+}
+
+.CodeMirror { 
+    font-family: 'Courier New', Courier, monospace; 
+    height: 100%; 
+    font-size: 14px; 
+}
+
+#main-content { 
+    display: flex; 
+    height: calc(100vh - 120px); 
+}
+
+#editor-panel, #output-panel { 
+    display: flex; 
+    flex-direction: column; 
+}
+
+#resize-handle { 
+    cursor: col-resize; 
+    background: #e5e7eb; 
+    width: 4px; 
+    transition: background-color 0.2s; 
+    flex-shrink: 0; 
+}
+
+.dark #resize-handle { 
+    background: #374151; 
+}
+
+#resize-handle:hover { 
+    background-color: #4f46e5; 
+}
+
+#submit-input { 
+    white-space: nowrap; 
+}
