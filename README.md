@@ -3,9 +3,7 @@
 ブラウザ上で動作する、簡易的なLuaプログラミング環境です。
 特別なインストールは不要で、Webページにアクセスするだけで誰でもすぐにLuaコードを試すことができます。
 
-[デモページを見る](https://[あなたのGitHubユーザー名].github.io/[リポジトリ名]/) <!-- ★★★ 公開後にURLを書き換えてください ★★★ -->
-
-![実行画面のスクリーンショット](https://placehold.co/600x400/2d3748/ffffff?text=Web-Based-Lua-IDE) <!-- ★★★ スクリーンショットを撮影して差し替えてください ★★★ -->
+https://you-sk.github.io/tiny-lua-ide/
 
 ## ✨ 主な機能
 
@@ -39,6 +37,6 @@
 * コードの自動保存機能（ローカルストレージ利用）を追加する。
 * UI/UXのさらなる改善。
 
----
+## License
 
-This project was created with the help of a collaborative AI.
+MITライセンス
